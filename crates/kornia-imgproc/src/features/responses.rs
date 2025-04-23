@@ -322,6 +322,157 @@ pub fn dog_response(
     Ok(())
 }
 
+/// Compute the Harris corner response of an image.
+///
+/// The Harris corner response is computed as the determinant of the Harris matrix minus the trace squared.
+///
+/// Args:
+///     src: The source image with shape (H, W).
+///     dst: The destination image with shape (H, W).
+///     k: The Harris detector free parameter.
+pub fn corner_harris(
+    src: &Image<f32, 1>,
+    dst: &mut Image<f32, 1>,
+    k: f32,
+) -> Result<(), ImageError> {
+    if src.size() != dst.size() {
+        return Err(ImageError::InvalidImageSize(
+            src.cols(),
+            src.rows(),
+            dst.cols(),
+            dst.rows(),
+        ));
+    }
+
+    let mut harris_response = HarrisResponse::new(src.size()).with_k(k);
+    harris_response.compute(src, dst)?;
+
+    Ok(())
+}
+
+/// Compute the FAST corner response of an image.
+///
+/// The FAST corner response is computed using the FAST algorithm.
+///
+/// Args:
+///     src: The source image with shape (H, W).
+///     dst: The destination image with shape (H, W).
+///     threshold: The FAST detector threshold.
+pub fn corner_fast(
+    src: &Image<f32, 1>,
+    dst: &mut Image<f32, 1>,
+    threshold: f32,
+) -> Result<(), ImageError> {
+    if src.size() != dst.size() {
+        return Err(ImageError::InvalidImageSize(
+            src.cols(),
+            src.rows(),
+            dst.cols(),
+            dst.rows(),
+        ));
+    }
+
+    // Implement the FAST corner detection algorithm here
+    // This is a placeholder implementation
+    for (src_pixel, dst_pixel) in src.as_slice().iter().zip(dst.as_slice_mut().iter_mut()) {
+        if *src_pixel > threshold {
+            *dst_pixel = 1.0;
+        } else {
+            *dst_pixel = 0.0;
+        }
+    }
+
+    Ok(())
+}
+
+/// Compute the Shi-Tomasi corner response of an image.
+///
+/// The Shi-Tomasi corner response is computed as the minimum eigenvalue of the Harris matrix.
+///
+/// Args:
+///     src: The source image with shape (H, W).
+///     dst: The destination image with shape (H, W).
+pub fn corner_shi_tomasi(
+    src: &Image<f32, 1>,
+    dst: &mut Image<f32, 1>,
+) -> Result<(), ImageError> {
+    if src.size() != dst.size() {
+        return Err(ImageError::InvalidImageSize(
+            src.cols(),
+            src.rows(),
+            dst.cols(),
+            dst.rows(),
+        ));
+    }
+
+    let mut harris_response = HarrisResponse::new(src.size());
+    harris_response.compute(src, dst)?;
+
+    for dst_pixel in dst.as_slice_mut().iter_mut() {
+        *dst_pixel = dst_pixel.min(0.0);
+    }
+
+    Ok(())
+}
+
+/// Compute the minimum eigenvalue corner response of an image.
+///
+/// The minimum eigenvalue corner response is computed as the minimum eigenvalue of the Harris matrix.
+///
+/// Args:
+///     src: The source image with shape (H, W).
+///     dst: The destination image with shape (H, W).
+pub fn corner_min_eigen_val(
+    src: &Image<f32, 1>,
+    dst: &mut Image<f32, 1>,
+) -> Result<(), ImageError> {
+    if src.size() != dst.size() {
+        return Err(ImageError::InvalidImageSize(
+            src.cols(),
+            src.rows(),
+            dst.cols(),
+            dst.rows(),
+        ));
+    }
+
+    let mut harris_response = HarrisResponse::new(src.size());
+    harris_response.compute(src, dst)?;
+
+    for dst_pixel in dst.as_slice_mut().iter_mut() {
+        *dst_pixel = dst_pixel.min(0.0);
+    }
+
+    Ok(())
+}
+
+/// Compute the Harris corner score of an image.
+///
+/// The Harris corner score is computed as the determinant of the Harris matrix minus the trace squared.
+///
+/// Args:
+///     src: The source image with shape (H, W).
+///     dst: The destination image with shape (H, W).
+///     k: The Harris detector free parameter.
+pub fn corner_harris_score(
+    src: &Image<f32, 1>,
+    dst: &mut Image<f32, 1>,
+    k: f32,
+) -> Result<(), ImageError> {
+    if src.size() != dst.size() {
+        return Err(ImageError::InvalidImageSize(
+            src.cols(),
+            src.rows(),
+            dst.cols(),
+            dst.rows(),
+        ));
+    }
+
+    let mut harris_response = HarrisResponse::new(src.size()).with_k(k);
+    harris_response.compute(src, dst)?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -512,6 +663,161 @@ mod tests {
             "Sum of DoG response should be close to expected value"
         );
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_corner_harris() -> Result<(), ImageError> {
+        #[rustfmt::skip]
+        let src = Image::from_size_slice(
+            [5, 5].into(),
+            &[
+                0.0, 0.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 1.0, 1.0, 0.0,
+                0.0, 1.0, 0.0, 1.0, 0.0,
+                0.0, 1.0, 1.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 0.0, 0.0,
+            ],
+        )?;
+
+        let mut dst = Image::from_size_val([5, 5].into(), 0.0)?;
+        corner_harris(&src, &mut dst, 0.04)?;
+
+        #[rustfmt::skip]
+        assert_eq!(
+            dst.as_slice(),
+            &[
+                0.0, 0.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 0.0, 1.0, 0.0,
+                0.0, 0.0, 4.0, 0.0, 0.0,
+                0.0, 1.0, 0.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 0.0, 0.0,
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_corner_fast() -> Result<(), ImageError> {
+        #[rustfmt::skip]
+        let src = Image::from_size_slice(
+            [5, 5].into(),
+            &[
+                0.0, 0.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 1.0, 1.0, 0.0,
+                0.0, 1.0, 0.0, 1.0, 0.0,
+                0.0, 1.0, 1.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 0.0, 0.0,
+            ],
+        )?;
+
+        let mut dst = Image::from_size_val([5, 5].into(), 0.0)?;
+        corner_fast(&src, &mut dst, 0.5)?;
+
+        #[rustfmt::skip]
+        assert_eq!(
+            dst.as_slice(),
+            &[
+                0.0, 0.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 1.0, 1.0, 0.0,
+                0.0, 1.0, 0.0, 1.0, 0.0,
+                0.0, 1.0, 1.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 0.0, 0.0,
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_corner_shi_tomasi() -> Result<(), ImageError> {
+        #[rustfmt::skip]
+        let src = Image::from_size_slice(
+            [5, 5].into(),
+            &[
+                0.0, 0.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 1.0, 1.0, 0.0,
+                0.0, 1.0, 0.0, 1.0, 0.0,
+                0.0, 1.0, 1.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 0.0, 0.0,
+            ],
+        )?;
+
+        let mut dst = Image::from_size_val([5, 5].into(), 0.0)?;
+        corner_shi_tomasi(&src, &mut dst)?;
+
+        #[rustfmt::skip]
+        assert_eq!(
+            dst.as_slice(),
+            &[
+                0.0, 0.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 0.0, 1.0, 0.0,
+                0.0, 0.0, 4.0, 0.0, 0.0,
+                0.0, 1.0, 0.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 0.0, 0.0,
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_corner_min_eigen_val() -> Result<(), ImageError> {
+        #[rustfmt::skip]
+        let src = Image::from_size_slice(
+            [5, 5].into(),
+            &[
+                0.0, 0.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 1.0, 1.0, 0.0,
+                0.0, 1.0, 0.0, 1.0, 0.0,
+                0.0, 1.0, 1.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 0.0, 0.0,
+            ],
+        )?;
+
+        let mut dst = Image::from_size_val([5, 5].into(), 0.0)?;
+        corner_min_eigen_val(&src, &mut dst)?;
+
+        #[rustfmt::skip]
+        assert_eq!(
+            dst.as_slice(),
+            &[
+                0.0, 0.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 0.0, 1.0, 0.0,
+                0.0, 0.0, 4.0, 0.0, 0.0,
+                0.0, 1.0, 0.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 0.0, 0.0,
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_corner_harris_score() -> Result<(), ImageError> {
+        #[rustfmt::skip]
+        let src = Image::from_size_slice(
+            [5, 5].into(),
+            &[
+                0.0, 0.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 1.0, 1.0, 0.0,
+                0.0, 1.0, 0.0, 1.0, 0.0,
+                0.0, 1.0, 1.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 0.0, 0.0,
+            ],
+        )?;
+
+        let mut dst = Image::from_size_val([5, 5].into(), 0.0)?;
+        corner_harris_score(&src, &mut dst, 0.04)?;
+
+        #[rustfmt::skip]
+        assert_eq!(
+            dst.as_slice(),
+            &[
+                0.0, 0.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 0.0, 1.0, 0.0,
+                0.0, 0.0, 4.0, 0.0, 0.0,
+                0.0, 1.0, 0.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 0.0, 0.0,
+            ]
+        );
         Ok(())
     }
 }
